@@ -140,12 +140,14 @@ export default function EditSkillRatingDialog({
         }
         
         // Create new rating
-        const response = await apiRequest('POST', '/api/skill-ratings', {
+        const payload = {
           teamMemberId: parseInt(values.teamMemberId),
           skillId: skill.id,
           level: parseInt(values.level),
-          weekOf: weekDate.toISOString()
-        });
+          weekOf: weekDate
+        };
+        
+        const response = await apiRequest('POST', '/api/skill-ratings', payload);
         if (!response) throw new Error('Failed to create skill rating');
         return response;
       } catch (error) {
