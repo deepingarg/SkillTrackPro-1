@@ -101,7 +101,7 @@ export default function Dashboard() {
   
   // Find most improved skill
   const findMostImprovedSkill = () => {
-    if (!historicalData || historicalData.length < 2) return null;
+    if (!historicalData || !Array.isArray(historicalData) || historicalData.length < 2) return null;
     
     // Sort historical data by date
     const sortedData = [...historicalData].sort((a, b) => 
@@ -112,12 +112,17 @@ export default function Dashboard() {
     const latestWeek = sortedData[sortedData.length - 1];
     const previousWeek = sortedData[sortedData.length - 2];
     
+    // Ensure we have ratings data for both weeks
+    if (!latestWeek?.ratings || !previousWeek?.ratings) return null;
+    
     // Calculate improvement for each skill
     const skillImprovements: Record<string, { name: string, improvement: number }> = {};
     
-    latestWeek.ratings.forEach((latestRating: any) => {
-      const previousRating = previousWeek.ratings.find(
-        (pr: any) => pr.skillId === latestRating.skillId && pr.teamMemberId === latestRating.teamMemberId
+    (latestWeek.ratings || []).forEach((latestRating: any) => {
+      if (!latestRating) return;
+      
+      const previousRating = (previousWeek.ratings || []).find(
+        (pr: any) => pr && pr.skillId === latestRating.skillId && pr.teamMemberId === latestRating.teamMemberId
       );
       
       if (previousRating) {
