@@ -361,7 +361,10 @@ export default function ImportData() {
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center mb-4">
-                    <DownloadTemplateButton templateType="skillRatings" />
+                    <div className="flex flex-col">
+                      <p className="text-sm text-gray-600 mb-2">Need a sample Excel file? Download our template:</p>
+                      <DownloadTemplateButton templateType="skillRatings" />
+                    </div>
                   </div>
                   <div>
                     <label htmlFor="skill-ratings-file" className="block text-sm font-medium mb-2">
