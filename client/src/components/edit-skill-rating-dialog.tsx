@@ -120,29 +120,37 @@ export default function EditSkillRatingDialog({
   // Create/update skill rating mutation
   const updateSkillRating = useMutation({
     mutationFn: async (values: any) => {
-      // Check if rating already exists for this team member, skill, and week
-      if (skillRatings) {
-        const existingRating = skillRatings.find(
-          (rating: any) => 
-            rating.teamMemberId.toString() === values.teamMemberId &&
-            new Date(rating.weekOf).toDateString() === weekDate.toDateString()
-        );
-        
-        if (existingRating) {
-          // Update existing rating
-          return apiRequest('PATCH', `/api/skill-ratings/${existingRating.id}`, {
-            level: parseInt(values.level)
-          });
+      try {
+        // Check if rating already exists for this team member, skill, and week
+        if (skillRatings) {
+          const existingRating = skillRatings.find(
+            (rating: any) => 
+              rating.teamMemberId.toString() === values.teamMemberId &&
+              new Date(rating.weekOf).toDateString() === weekDate.toDateString()
+          );
+          
+          if (existingRating) {
+            // Update existing rating
+            const response = await apiRequest('PATCH', `/api/skill-ratings/${existingRating.id}`, {
+              level: parseInt(values.level)
+            });
+            if (!response) throw new Error('Failed to update skill rating');
+            return response;
+          }
         }
+        
+        // Create new rating
+        const response = await apiRequest('POST', '/api/skill-ratings', {
+          teamMemberId: parseInt(values.teamMemberId),
+          skillId: skill.id,
+          level: parseInt(values.level),
+          weekOf: weekDate.toISOString()
+        });
+        if (!response) throw new Error('Failed to create skill rating');
+        return response;
+      } catch (error) {
+        throw new Error(error instanceof Error ? error.message : 'Failed to save skill rating');
       }
-      
-      // Create new rating
-      return apiRequest('POST', '/api/skill-ratings', {
-        teamMemberId: parseInt(values.teamMemberId),
-        skillId: skill.id,
-        level: parseInt(values.level),
-        weekOf: weekDate.toISOString()
-      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/skill-ratings'] });
@@ -322,8 +330,9 @@ export default function EditSkillRatingDialog({
                   <Button 
                     type="submit" 
                     disabled={updateSkillRating.isPending || !selectedMember}
+                    variant={updateSkillRating.isError ? "destructive" : "default"}
                   >
-                    {updateSkillRating.isPending ? "Saving..." : "Save Rating"}
+                    {updateSkillRating.isPending ? "Saving..." : updateSkillRating.isError ? "Failed to Save" : "Save Rating"}
                   </Button>
                 </DialogFooter>
               </form>
