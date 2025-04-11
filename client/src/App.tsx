@@ -7,6 +7,7 @@ import Header from "@/components/header";
 import Dashboard from "@/pages/dashboard";
 import TeamMembers from "@/pages/team-members";
 import Skills from "@/pages/skills";
+import ImportData from "@/pages/import-data";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
             <Route path="/" component={Dashboard} />
             <Route path="/team-members" component={TeamMembers} />
             <Route path="/skills" component={Skills} />
+            <Route path="/import-data" component={ImportData} />
             <Route component={NotFound} />
           </Switch>
         </main>

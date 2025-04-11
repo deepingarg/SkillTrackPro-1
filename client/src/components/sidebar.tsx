@@ -7,7 +7,8 @@ import {
   LineChart, 
   Settings, 
   User,
-  Gauge
+  Gauge,
+  FileSpreadsheet
 } from "lucide-react";
 
 interface SidebarItemProps {
@@ -79,6 +80,14 @@ export default function Sidebar() {
               label="Reports" 
               href="/reports" 
               isActive={location === "/reports"} 
+            />
+          </li>
+          <li>
+            <SidebarItem 
+              icon={<FileSpreadsheet size={20} />} 
+              label="Import Data" 
+              href="/import-data" 
+              isActive={location === "/import-data"} 
             />
           </li>
           <li>
