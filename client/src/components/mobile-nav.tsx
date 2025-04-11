@@ -39,13 +39,13 @@ export default function MobileNav() {
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center z-50">
       {navItems.map((item) => (
         <Link key={item.href} href={item.href}>
-          <a className={cn(
-            "flex flex-col items-center py-2",
+          <div className={cn(
+            "flex flex-col items-center py-2 cursor-pointer",
             location === item.href ? "text-blue-600" : "text-gray-500"
           )}>
             {item.icon}
             <span className="text-xs mt-1">{item.label}</span>
-          </a>
+          </div>
         </Link>
       ))}
     </nav>
