@@ -144,7 +144,7 @@ export default function EditSkillRatingDialog({
           teamMemberId: parseInt(values.teamMemberId),
           skillId: skill.id,
           level: parseInt(values.level),
-          weekOf: weekDate
+          weekOf: weekDate.toISOString()
         };
         
         const response = await apiRequest('POST', '/api/skill-ratings', payload);
