@@ -2,8 +2,11 @@ import {
   InsertTeamMember, TeamMember, 
   InsertSkill, Skill, 
   InsertSkillRating, SkillRating, SkillRatingWithDetails,
-  InsertUser, User
+  InsertUser, User,
+  users, teamMembers, skills, skillRatings
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, gte, lt } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -410,4 +413,252 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async getAllTeamMembers(): Promise<TeamMember[]> {
+    return db.select().from(teamMembers);
+  }
+
+  async getTeamMember(id: number): Promise<TeamMember | undefined> {
+    const [teamMember] = await db.select().from(teamMembers).where(eq(teamMembers.id, id));
+    return teamMember || undefined;
+  }
+
+  async createTeamMember(teamMember: InsertTeamMember): Promise<TeamMember> {
+    const [newTeamMember] = await db
+      .insert(teamMembers)
+      .values(teamMember)
+      .returning();
+    return newTeamMember;
+  }
+
+  async deleteTeamMember(id: number): Promise<boolean> {
+    // First delete associated skill ratings
+    await db.delete(skillRatings).where(eq(skillRatings.teamMemberId, id));
+    
+    // Then delete the team member
+    const result = await db.delete(teamMembers).where(eq(teamMembers.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getAllSkills(): Promise<Skill[]> {
+    return db.select().from(skills);
+  }
+
+  async getSkill(id: number): Promise<Skill | undefined> {
+    const [skill] = await db.select().from(skills).where(eq(skills.id, id));
+    return skill || undefined;
+  }
+
+  async createSkill(skill: InsertSkill): Promise<Skill> {
+    const [newSkill] = await db
+      .insert(skills)
+      .values(skill)
+      .returning();
+    return newSkill;
+  }
+
+  async deleteSkill(id: number): Promise<boolean> {
+    // First delete associated skill ratings
+    await db.delete(skillRatings).where(eq(skillRatings.skillId, id));
+    
+    // Then delete the skill
+    const result = await db.delete(skills).where(eq(skills.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getAllSkillRatings(): Promise<SkillRating[]> {
+    return db.select().from(skillRatings);
+  }
+
+  async getSkillRatingsForTeamMember(teamMemberId: number): Promise<SkillRating[]> {
+    return db.select().from(skillRatings).where(eq(skillRatings.teamMemberId, teamMemberId));
+  }
+
+  async getSkillRatingsForSkill(skillId: number): Promise<SkillRating[]> {
+    return db.select().from(skillRatings).where(eq(skillRatings.skillId, skillId));
+  }
+
+  async getSkillRatingsForWeek(weekDate: Date): Promise<SkillRating[]> {
+    const startOfWeek = new Date(weekDate);
+    startOfWeek.setHours(0, 0, 0, 0);
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Start of week (Sunday)
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+    
+    return db.select().from(skillRatings).where(
+      and(
+        gte(skillRatings.weekOf, startOfWeek),
+        lt(skillRatings.weekOf, endOfWeek)
+      )
+    );
+  }
+
+  async createSkillRating(skillRating: InsertSkillRating): Promise<SkillRating> {
+    const [newSkillRating] = await db
+      .insert(skillRatings)
+      .values(skillRating)
+      .returning();
+    return newSkillRating;
+  }
+
+  async updateSkillRating(id: number, level: number): Promise<SkillRating | undefined> {
+    const [updatedRating] = await db
+      .update(skillRatings)
+      .set({ level })
+      .where(eq(skillRatings.id, id))
+      .returning();
+    return updatedRating;
+  }
+
+  async getSkillRatingsWithDetails(): Promise<SkillRatingWithDetails[]> {
+    const ratings = await this.getAllSkillRatings();
+    return Promise.all(
+      ratings.map(async (rating) => {
+        const teamMember = await this.getTeamMember(rating.teamMemberId);
+        const skill = await this.getSkill(rating.skillId);
+        
+        if (!teamMember || !skill) {
+          throw new Error(`Missing team member or skill for rating ${rating.id}`);
+        }
+        
+        return {
+          id: rating.id,
+          teamMemberId: rating.teamMemberId,
+          teamMemberName: teamMember.name,
+          skillId: rating.skillId,
+          skillName: skill.name,
+          skillCategory: skill.category,
+          level: rating.level,
+          weekOf: rating.weekOf,
+        };
+      })
+    );
+  }
+
+  async getTeamSkillMatrix(weekDate: Date): Promise<any> {
+    const weekRatings = await this.getSkillRatingsForWeek(weekDate);
+    const teamMembers = await this.getAllTeamMembers();
+    const allSkills = await this.getAllSkills();
+    
+    // Create a matrix of team members and their skill ratings
+    const matrix = teamMembers.map(member => {
+      const memberRatings = weekRatings.filter(rating => rating.teamMemberId === member.id);
+      
+      const skillLevels = allSkills.map(skill => {
+        const rating = memberRatings.find(r => r.skillId === skill.id);
+        return {
+          skillId: skill.id,
+          skillName: skill.name,
+          level: rating ? rating.level : 0, // Default to Unknown if no rating
+        };
+      });
+      
+      return {
+        teamMemberId: member.id,
+        teamMemberName: member.name,
+        role: member.role,
+        department: member.department,
+        email: member.email,
+        skills: skillLevels,
+      };
+    });
+    
+    return {
+      weekOf: weekDate,
+      skills: allSkills.map(s => ({ id: s.id, name: s.name, category: s.category })),
+      teamMembers: matrix,
+    };
+  }
+
+  async getHistoricalRatings(teamMemberId?: number, skillId?: number): Promise<any> {
+    let query = db.select().from(skillRatings);
+    
+    // Apply filters if provided
+    if (teamMemberId !== undefined) {
+      query = query.where(eq(skillRatings.teamMemberId, teamMemberId));
+    }
+    
+    if (skillId !== undefined) {
+      query = query.where(eq(skillRatings.skillId, skillId));
+    }
+    
+    const ratings = await query;
+    
+    // Group ratings by week
+    const ratingsByWeek = new Map<string, SkillRating[]>();
+    
+    for (const rating of ratings) {
+      const weekDate = new Date(rating.weekOf);
+      weekDate.setHours(0, 0, 0, 0);
+      weekDate.setDate(weekDate.getDate() - weekDate.getDay()); // Start of week (Sunday)
+      
+      const weekKey = weekDate.toISOString().split('T')[0];
+      
+      if (!ratingsByWeek.has(weekKey)) {
+        ratingsByWeek.set(weekKey, []);
+      }
+      
+      ratingsByWeek.get(weekKey)!.push(rating);
+    }
+    
+    // Convert to array and sort by week
+    const weeklyData = Array.from(ratingsByWeek.entries())
+      .map(([weekKey, ratings]) => ({
+        weekOf: weekKey,
+        ratings: ratings,
+      }))
+      .sort((a, b) => a.weekOf.localeCompare(b.weekOf));
+    
+    // Enrich with details
+    const enrichedData = await Promise.all(
+      weeklyData.map(async week => {
+        const detailedRatings = await Promise.all(
+          week.ratings.map(async rating => {
+            const teamMember = await this.getTeamMember(rating.teamMemberId);
+            const skill = await this.getSkill(rating.skillId);
+            
+            return {
+              id: rating.id,
+              teamMemberId: rating.teamMemberId,
+              teamMemberName: teamMember ? teamMember.name : 'Unknown',
+              skillId: rating.skillId,
+              skillName: skill ? skill.name : 'Unknown',
+              skillCategory: skill ? skill.category : 'Unknown',
+              level: rating.level,
+              weekOf: rating.weekOf,
+            };
+          })
+        );
+        
+        return {
+          weekOf: week.weekOf,
+          ratings: detailedRatings,
+        };
+      })
+    );
+    
+    return enrichedData;
+  }
+}
+
+// Switch from in-memory to database storage
+export const storage = new DatabaseStorage();
