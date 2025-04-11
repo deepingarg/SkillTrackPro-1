@@ -49,19 +49,19 @@ export default function SkillChart({
     const sortedHistorical = [...historicalData].sort(
       (a, b) => new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime()
     );
-    const currentWeekData = sortedHistorical[0];
+    const currentWeekData = sortedHistorical[0] || { ratings: [] };
     const previousWeekData = sortedHistorical.length > 1 ? sortedHistorical[1] : null;
     
     // Create data for each skill
     skillsToDisplay.forEach((skill: any) => {
       // Filter ratings by skill and optionally by team member
-      const currentWeekRatings = currentWeekData.ratings.filter(
+      const currentWeekRatings = currentWeekData.ratings ? currentWeekData.ratings.filter(
         (r: any) => r.skillId === skill.id && 
         (!selectedTeamMember || r.teamMemberId.toString() === selectedTeamMember)
-      );
+      ) : [];
       
       let previousWeekRatings: any[] = [];
-      if (previousWeekData) {
+      if (previousWeekData && previousWeekData.ratings) {
         previousWeekRatings = previousWeekData.ratings.filter(
           (r: any) => r.skillId === skill.id && 
           (!selectedTeamMember || r.teamMemberId.toString() === selectedTeamMember)

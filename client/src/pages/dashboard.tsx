@@ -69,13 +69,13 @@ export default function Dashboard() {
   });
   
   // Get categories from skills
-  const categories = dashboardData?.skills?.reduce((acc: Set<string>, skill: any) => {
+  const categories = (dashboardData?.skills || []).reduce((acc: Set<string>, skill: any) => {
     if (skill.category) acc.add(skill.category);
     return acc;
   }, new Set<string>());
   
   // Filter skills by category
-  const filteredSkills = dashboardData?.skills?.filter((skill: any) => {
+  const filteredSkills = (dashboardData?.skills || []).filter((skill: any) => {
     if (!selectedCategory) return true;
     return skill.category === selectedCategory;
   });
@@ -87,11 +87,13 @@ export default function Dashboard() {
     let totalRatings = 0;
     let totalSkills = 0;
     
-    dashboardData.teamMembers.forEach((member: any) => {
-      member.skills.forEach((skill: any) => {
-        totalRatings += skill.level;
-        totalSkills++;
-      });
+    (dashboardData.teamMembers || []).forEach((member: any) => {
+      if (member && member.skills) {
+        (member.skills || []).forEach((skill: any) => {
+          totalRatings += skill.level;
+          totalSkills++;
+        });
+      }
     });
     
     return totalSkills > 0 ? (totalRatings / totalSkills).toFixed(1) : 0;
@@ -150,18 +152,20 @@ export default function Dashboard() {
     const skillAverages: Record<string, { name: string, category: string, average: number, belowBasicCount: number }> = {};
     
     // Calculate average for each skill
-    dashboardData.skills.forEach((skill: any) => {
+    (dashboardData?.skills || []).forEach((skill: any) => {
       let totalLevel = 0;
       let memberCount = 0;
       let belowBasicCount = 0;
       
-      dashboardData.teamMembers.forEach((member: any) => {
-        const memberSkill = member.skills.find((s: any) => s.skillId === skill.id);
-        if (memberSkill) {
-          totalLevel += memberSkill.level;
-          memberCount++;
-          if (memberSkill.level < 1) { // Below Basic Knowledge
-            belowBasicCount++;
+      (dashboardData?.teamMembers || []).forEach((member: any) => {
+        if (member && member.skills) {
+          const memberSkill = member.skills.find((s: any) => s.skillId === skill.id);
+          if (memberSkill) {
+            totalLevel += memberSkill.level;
+            memberCount++;
+            if (memberSkill.level < 1) { // Below Basic Knowledge
+              belowBasicCount++;
+            }
           }
         }
       });
