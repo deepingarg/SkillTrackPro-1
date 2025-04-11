@@ -5,7 +5,8 @@ import {
   Users, 
   Brain, 
   Settings, 
-  Gauge 
+  Gauge,
+  FileSpreadsheet
 } from "lucide-react";
 
 export default function MobileNav() {
@@ -27,6 +28,11 @@ export default function MobileNav() {
       href: "/skills",
       label: "Skills",
       icon: <Brain className="h-5 w-5" />,
+    },
+    {
+      href: "/import-data",
+      label: "Import",
+      icon: <FileSpreadsheet className="h-5 w-5" />,
     },
     {
       href: "/settings",

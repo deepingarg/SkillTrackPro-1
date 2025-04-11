@@ -46,10 +46,13 @@ export default function ImportData() {
 
   const teamMembersImportMutation = useMutation({
     mutationFn: async (data: any[]) => {
-      return apiRequest("/api/import/team-members", {
+      return fetch("/api/import/team-members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data }),
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to import team members");
+        return res.json();
       });
     },
     onSuccess: () => {
@@ -72,10 +75,13 @@ export default function ImportData() {
 
   const skillsImportMutation = useMutation({
     mutationFn: async (data: any[]) => {
-      return apiRequest("/api/import/skills", {
+      return fetch("/api/import/skills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data }),
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to import skills");
+        return res.json();
       });
     },
     onSuccess: () => {
@@ -98,10 +104,13 @@ export default function ImportData() {
 
   const skillRatingsImportMutation = useMutation({
     mutationFn: async (data: any[]) => {
-      return apiRequest("/api/import/skill-ratings", {
+      return fetch("/api/import/skill-ratings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data }),
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to import skill ratings");
+        return res.json();
       });
     },
     onSuccess: () => {

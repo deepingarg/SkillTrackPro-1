@@ -254,6 +254,239 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Excel import routes
+  apiRouter.post("/import/team-members", async (req, res) => {
+    try {
+      const { data } = req.body;
+      
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        return res.status(400).json({ message: "Invalid data format. Expected an array of team members." });
+      }
+      
+      const results = {
+        success: 0,
+        errors: [] as { row: number; message: string }[]
+      };
+      
+      for (let i = 0; i < data.length; i++) {
+        try {
+          const row = data[i];
+          
+          // Validate and transform the data
+          const teamMemberData = {
+            name: row.name || row.Name || "",
+            role: row.role || row.Role || row.position || row.Position || "",
+            department: row.department || row.Department || "",
+            email: row.email || row.Email || ""
+          };
+          
+          // Validate with zod schema
+          const validatedData = insertTeamMemberSchema.parse(teamMemberData);
+          
+          // Create team member
+          await storage.createTeamMember(validatedData);
+          results.success++;
+        } catch (error) {
+          let message = "Unknown error";
+          if (error instanceof z.ZodError) {
+            message = error.errors.map(err => `${err.path}: ${err.message}`).join(", ");
+          } else if (error instanceof Error) {
+            message = error.message;
+          }
+          
+          results.errors.push({ row: i + 1, message });
+        }
+      }
+      
+      res.json({
+        message: `Imported ${results.success} team members successfully with ${results.errors.length} errors.`,
+        details: results
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to import team members", error: String(error) });
+    }
+  });
+  
+  apiRouter.post("/import/skills", async (req, res) => {
+    try {
+      const { data } = req.body;
+      
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        return res.status(400).json({ message: "Invalid data format. Expected an array of skills." });
+      }
+      
+      const results = {
+        success: 0,
+        errors: [] as { row: number; message: string }[]
+      };
+      
+      for (let i = 0; i < data.length; i++) {
+        try {
+          const row = data[i];
+          
+          // Validate and transform the data
+          const skillData = {
+            name: row.name || row.Name || "",
+            category: row.category || row.Category || "",
+            description: row.description || row.Description || null
+          };
+          
+          // Validate with zod schema
+          const validatedData = insertSkillSchema.parse(skillData);
+          
+          // Create skill
+          await storage.createSkill(validatedData);
+          results.success++;
+        } catch (error) {
+          let message = "Unknown error";
+          if (error instanceof z.ZodError) {
+            message = error.errors.map(err => `${err.path}: ${err.message}`).join(", ");
+          } else if (error instanceof Error) {
+            message = error.message;
+          }
+          
+          results.errors.push({ row: i + 1, message });
+        }
+      }
+      
+      res.json({
+        message: `Imported ${results.success} skills successfully with ${results.errors.length} errors.`,
+        details: results
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to import skills", error: String(error) });
+    }
+  });
+  
+  apiRouter.post("/import/skill-ratings", async (req, res) => {
+    try {
+      const { data } = req.body;
+      
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        return res.status(400).json({ message: "Invalid data format. Expected an array of skill ratings." });
+      }
+      
+      const results = {
+        success: 0,
+        errors: [] as { row: number; message: string }[]
+      };
+      
+      // Get all team members and skills for name mapping
+      const teamMembers = await storage.getAllTeamMembers();
+      const skills = await storage.getAllSkills();
+      
+      const teamMemberMap = new Map();
+      teamMembers.forEach(tm => {
+        teamMemberMap.set(tm.id.toString(), tm);
+        teamMemberMap.set(tm.name.toLowerCase(), tm);
+      });
+      
+      const skillMap = new Map();
+      skills.forEach(skill => {
+        skillMap.set(skill.id.toString(), skill);
+        skillMap.set(skill.name.toLowerCase(), skill);
+      });
+      
+      for (let i = 0; i < data.length; i++) {
+        try {
+          const row = data[i];
+          
+          // Find team member by id or name
+          let teamMemberId = row.teamMemberId || row.team_member_id || null;
+          const teamMemberName = row.teamMemberName || row.team_member_name || row.name || row.Name || "";
+          
+          if (!teamMemberId && teamMemberName) {
+            const teamMember = teamMemberMap.get(teamMemberName.toLowerCase());
+            if (teamMember) {
+              teamMemberId = teamMember.id;
+            }
+          }
+          
+          // Find skill by id or name
+          let skillId = row.skillId || row.skill_id || null;
+          const skillName = row.skillName || row.skill_name || row.skill || row.Skill || "";
+          
+          if (!skillId && skillName) {
+            const skill = skillMap.get(skillName.toLowerCase());
+            if (skill) {
+              skillId = skill.id;
+            }
+          }
+          
+          // Parse level (can be string or number)
+          let level = row.level || row.Level || 0;
+          if (typeof level === 'string') {
+            // Handle text-based levels
+            const levelLower = level.toLowerCase();
+            if (levelLower.includes('unknown') || levelLower.includes('none')) {
+              level = SkillLevel.Unknown;
+            } else if (levelLower.includes('basic') || levelLower.includes('beginner')) {
+              level = SkillLevel.BasicKnowledge;
+            } else if (levelLower.includes('hands') || levelLower.includes('experienced') || levelLower.includes('intermediate')) {
+              level = SkillLevel.HandsOnExperience;
+            } else if (levelLower.includes('expert') || levelLower.includes('advanced')) {
+              level = SkillLevel.Expert;
+            } else {
+              // Try to parse as number
+              level = parseInt(level);
+              if (isNaN(level)) level = 0;
+            }
+          }
+          
+          // Parse weekOf date
+          let weekOf = row.weekOf || row.week_of || row.date || row.Date || null;
+          if (weekOf) {
+            try {
+              weekOf = new Date(weekOf);
+              if (isNaN(weekOf.getTime())) {
+                weekOf = new Date(); // Default to current date if invalid
+              }
+            } catch (e) {
+              weekOf = new Date(); // Default to current date if parsing fails
+            }
+          } else {
+            weekOf = new Date(); // Default to current date if not provided
+          }
+          
+          // Ensure level is within valid range
+          if (level < 0) level = 0;
+          if (level > 3) level = 3;
+          
+          // Validate and transform the data
+          const skillRatingData = {
+            teamMemberId: Number(teamMemberId),
+            skillId: Number(skillId),
+            level: Number(level),
+            weekOf: weekOf
+          };
+          
+          // Validate with zod schema
+          const validatedData = insertSkillRatingSchema.parse(skillRatingData);
+          
+          // Create skill rating
+          await storage.createSkillRating(validatedData);
+          results.success++;
+        } catch (error) {
+          let message = "Unknown error";
+          if (error instanceof z.ZodError) {
+            message = error.errors.map(err => `${err.path}: ${err.message}`).join(", ");
+          } else if (error instanceof Error) {
+            message = error.message;
+          }
+          
+          results.errors.push({ row: i + 1, message });
+        }
+      }
+      
+      res.json({
+        message: `Imported ${results.success} skill ratings successfully with ${results.errors.length} errors.`,
+        details: results
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to import skill ratings", error: String(error) });
+    }
+  });
+  
   // Use the API router with prefix
   app.use("/api", apiRouter);
   
