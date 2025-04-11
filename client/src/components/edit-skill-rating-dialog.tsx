@@ -142,10 +142,15 @@ export default function EditSkillRatingDialog({
         // Create new rating
         const payload = {
           teamMemberId: parseInt(values.teamMemberId),
-          skillId: skill.id,
+          skillId: parseInt(skill.id),
           level: parseInt(values.level),
-          weekOf: weekDate.toISOString()
+          weekOf: new Date(weekDate).toISOString()
         };
+        
+        // Validate payload before sending
+        if (isNaN(payload.teamMemberId) || isNaN(payload.skillId) || isNaN(payload.level)) {
+          throw new Error('Invalid data: All IDs and level must be numbers');
+        }
         
         const response = await apiRequest('POST', '/api/skill-ratings', payload);
         if (!response) throw new Error('Failed to create skill rating');
