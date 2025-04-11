@@ -140,16 +140,19 @@ export default function EditSkillRatingDialog({
         }
         
         // Create new rating
+        const startOfDay = new Date(weekDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        
         const payload = {
-          teamMemberId: parseInt(values.teamMemberId),
-          skillId: parseInt(skill.id),
-          level: parseInt(values.level),
-          weekOf: new Date(weekDate).toISOString()
+          teamMemberId: Number(values.teamMemberId),
+          skillId: Number(skill.id),
+          level: Number(values.level),
+          weekOf: startOfDay
         };
         
-        // Validate payload before sending
-        if (isNaN(payload.teamMemberId) || isNaN(payload.skillId) || isNaN(payload.level)) {
-          throw new Error('Invalid data: All IDs and level must be numbers');
+        // Ensure all required fields are present and valid
+        if (!payload.teamMemberId || !payload.skillId || isNaN(payload.level)) {
+          throw new Error('Required fields are missing or invalid');
         }
         
         const response = await apiRequest('POST', '/api/skill-ratings', payload);
