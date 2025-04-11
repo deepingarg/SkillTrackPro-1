@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DownloadTemplateButton from "@/components/download-template-button";
 
 export default function ImportData() {
   const [file, setFile] = useState<File | null>(null);
@@ -194,6 +195,12 @@ export default function ImportData() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex flex-col">
+                      <p className="text-sm text-gray-600 mb-2">Need a sample Excel file? Download our template:</p>
+                      <DownloadTemplateButton templateType="teamMembers" />
+                    </div>
+                  </div>
                   <div>
                     <label htmlFor="team-members-file" className="block text-sm font-medium mb-2">
                       Select Excel File
@@ -270,6 +277,12 @@ export default function ImportData() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex flex-col">
+                      <p className="text-sm text-gray-600 mb-2">Need a sample Excel file? Download our template:</p>
+                      <DownloadTemplateButton templateType="skills" />
+                    </div>
+                  </div>
                   <div>
                     <label htmlFor="skills-file" className="block text-sm font-medium mb-2">
                       Select Excel File
@@ -347,6 +360,9 @@ export default function ImportData() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <DownloadTemplateButton templateType="skillRatings" />
+                  </div>
                   <div>
                     <label htmlFor="skill-ratings-file" className="block text-sm font-medium mb-2">
                       Select Excel File
